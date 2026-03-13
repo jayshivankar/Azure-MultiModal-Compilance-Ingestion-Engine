@@ -290,6 +290,8 @@ dependencies = [
     { name = "langchain-openai" },
     { name = "langgraph" },
     { name = "langsmith" },
+    { name = "nodejs" },
+    { name = "npm" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "pandas" },
     { name = "psycopg2-binary" },
@@ -317,6 +319,8 @@ requires-dist = [
     { name = "langchain-openai", specifier = ">=1.1.10" },
     { name = "langgraph", specifier = ">=1.0.10" },
     { name = "langsmith", specifier = ">=0.7.12" },
+    { name = "nodejs", specifier = ">=0.1.1" },
+    { name = "npm", specifier = ">=0.1.1" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.60b0" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
@@ -1412,6 +1416,24 @@ wheels = [
 ]
 
 [[package]]
+name = "nodejs"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "optional-django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/eb/ee/97ee0b973d072702eb2927c0eb90647cc0e4598663ed8e591c1ca4120dd9/nodejs-0.1.1.tar.gz", hash = "sha256:4c585fecc51a91b151bbc6dd01c0fb8d93f29f897a8298009205b59b80b52933", size = 2325, upload-time = "2015-03-22T10:15:32.115Z" }
+
+[[package]]
+name = "npm"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "optional-django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ca/4d/7d59d82b777f3f7a1128608195655a1b36c1de89c292363d53d52d92a807/npm-0.1.1.tar.gz", hash = "sha256:84aefc83a3486d034c4c14f8bcd4b746b95b529289b0d042c268f6201c3034e9", size = 2521, upload-time = "2015-03-22T10:19:15.831Z" }
+
+[[package]]
 name = "numpy"
 version = "2.4.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1730,6 +1752,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/38/0d/786a713445cf33813
 wheels = [
     { url = "https://files.pythonhosted.org/packages/53/5d/a448862f6d10c95685ed0e703596b6bd1784074e7ad90bffdc550abb7b68/opentelemetry_util_http-0.60b0-py3-none-any.whl", hash = "sha256:4f366f1a48adb74ffa6f80aee26f96882e767e01b03cd1cfb948b6e1020341fe", size = 8742, upload-time = "2025-12-03T13:21:54.553Z" },
 ]
+
+[[package]]
+name = "optional-django"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/9e/b9b6a3854c613da94d695a2a52ca70ad1f0c65337c1b6e37f5f447964d19/optional-django-0.1.0.tar.gz", hash = "sha256:77d6b9fb74bda30583e1af4683a39e0af725cea6003252bba75838f4939326c5", size = 9530, upload-time = "2015-03-22T10:10:14.628Z" }
 
 [[package]]
 name = "orjson"
