@@ -47,7 +47,7 @@ class VideoIndexerService:
         
         ydl_opts = {
          'format': 'best',
-         'outtmpl': output_path, # output template
+         'outtmpl': output_path, 
          'quiet': False,
          'no_warnings': False,
          'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
@@ -77,7 +77,7 @@ class VideoIndexerService:
             "name": video_name,
             "privacy": "Private",
             "indexingPreset": "Default",
-            # We removed "videoUrl" because we are sending a file payload instead
+            
         }
         
         logger.info(f"Uploading file {video_path} to Azure...")
