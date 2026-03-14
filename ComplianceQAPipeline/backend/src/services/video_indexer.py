@@ -13,8 +13,10 @@ class VideoIndexerService:
         self.location = os.getenv("AZURE_VI_LOCATION")
         self.subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
         self.resource_group = os.getenv("AZURE_RESOURCE_GROUP")
-        self.vi_name = os.getenv("AZURE_VI_NAME", "project-brand-guardian-001")
-        self.credential = DefaultAzureCredential()
+        self.vi_name = os.getenv("AZURE_VI_NAME")
+        self.credential = DefaultAzureCredential(tenant_id="3b5ed7cd-dd15-45f9-85a9-e12f19229060")
+        #self.credential = DefaultAzureCredential(exclude_environment_credential=True)
+
 
     def get_access_token(self):
         """Generates an ARM Access Token."""

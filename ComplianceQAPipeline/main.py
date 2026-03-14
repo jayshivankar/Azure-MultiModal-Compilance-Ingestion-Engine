@@ -58,9 +58,9 @@ def run_cli_simulation():
     }
 
     #  DISPLAY SECTION: INPUT SUMMARY 
-    print("\n--- 1.nput Payload: INITIALIZING WORKFLOW ---")
+    print("\n--- 1.Input Payload: INITIALIZING WORKFLOW ---")
     
-    print(f"I {json.dumps(initial_inputs, indent=2)}")
+    print(f"{json.dumps(initial_inputs, indent=2)}")
 
     # STEP 3: EXECUTE GRAPH 
     # runs the entire workflow
