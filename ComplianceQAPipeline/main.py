@@ -48,7 +48,7 @@ def run_cli_simulation():
     # STEP 2: DEFINE INITIAL STATE
     
     initial_inputs = {
-        "video_url": "https://youtu.be/dT7S75eYhcQ",
+        "video_url": "https://www.youtube.com/watch?v=VW2nUA7yrJw",
                 
         "video_id": f"vid_{session_id[:8]}",   # Example: "vid_ce6c43bb"
         
