@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brand Guardian AI</title>
+    <meta
+      name="description"
+      content="Audit YouTube videos against brand and regulatory compliance rules using Azure-powered multimodal analysis."
+    />
+    <link rel="stylesheet" href="/frontend/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <span class="eyebrow">Production-ready compliance operations</span>
+          <h1>Brand Guardian AI</h1>
+          <p class="hero-copy">
+            Submit a YouTube video, trigger the multimodal compliance pipeline, and review findings in a clean audit dashboard.
+          </p>
+          <div class="hero-actions">
+            <a href="#audit-form" class="button button-primary">Start an audit</a>
+            <a href="/docs" class="button button-secondary">API docs</a>
+          </div>
+        </div>
+        <section class="status-card" aria-labelledby="system-health-title">
+          <div class="status-header">
+            <p class="section-label">Service status</p>
+            <span id="health-pill" class="pill pill-neutral">Checking…</span>
+          </div>
+          <h2 id="system-health-title">System readiness</h2>
+          <dl class="status-grid">
+            <div>
+              <dt>Environment</dt>
+              <dd id="environment-value">Loading…</dd>
+            </div>
+            <div>
+              <dt>Search index</dt>
+              <dd id="search-index-value">Loading…</dd>
+            </div>
+            <div>
+              <dt>Azure Monitor</dt>
+              <dd id="monitoring-value">Loading…</dd>
+            </div>
+            <div>
+              <dt>Frontend</dt>
+              <dd id="frontend-value">Loading…</dd>
+            </div>
+          </dl>
+        </section>
+      </header>
+
+      <main class="dashboard">
+        <section class="panel panel-form" id="audit-form">
+          <div class="panel-heading">
+            <p class="section-label">Audit request</p>
+            <h2>Run a compliance review</h2>
+            <p>
+              Paste a public YouTube URL. The backend downloads the video, sends it to Azure Video Indexer,
+              retrieves compliance guidance from Azure AI Search, and generates a final audit report.
+            </p>
+          </div>
+          <form id="video-audit-form" class="audit-form">
+            <label for="video-url">YouTube video URL</label>
+            <div class="input-row">
+              <input
+                id="video-url"
+                name="video_url"
+                type="url"
+                inputmode="url"
+                placeholder="https://www.youtube.com/watch?v=..."
+                required
+              />
+              <button type="submit" class="button button-primary">Audit video</button>
+            </div>
+            <p class="helper-text">
+              The audit can take several minutes depending on video length and Azure Video Indexer processing time.
+            </p>
+          </form>
+          <div id="form-feedback" class="feedback" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="panel panel-results" aria-labelledby="results-title">
+          <div class="panel-heading">
+            <p class="section-label">Audit results</p>
+            <h2 id="results-title">Findings dashboard</h2>
+          </div>
+
+          <div id="results-empty" class="empty-state">
+            <h3>No audit has run yet</h3>
+            <p>Start with a YouTube URL to generate a compliance report.</p>
+          </div>
+
+          <div id="results-content" class="results hidden">
+            <div class="result-summary">
+              <div>
+                <span class="section-label">Audit status</span>
+                <h3 id="result-status">—</h3>
+              </div>
+              <div class="summary-meta">
+                <div>
+                  <span>Session ID</span>
+                  <strong id="result-session-id">—</strong>
+                </div>
+                <div>
+                  <span>Video ID</span>
+                  <strong id="result-video-id">—</strong>
+                </div>
+              </div>
+            </div>
+
+            <article class="report-card">
+              <h3>Executive summary</h3>
+              <p id="result-report">—</p>
+            </article>
+
+            <article class="report-card">
+              <div class="violations-header">
+                <h3>Compliance findings</h3>
+                <span id="issue-count" class="pill pill-neutral">0 issues</span>
+              </div>
+              <ul id="issues-list" class="issues-list"></ul>
+            </article>
+
+            <article id="errors-card" class="report-card hidden">
+              <h3>System errors</h3>
+              <ul id="errors-list" class="issues-list issues-list-errors"></ul>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/frontend/app.js" defer></script>
+  </body>
+</html>
