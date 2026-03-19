@@ -1,154 +1,157 @@
-import uuid      
-import logging     
-from fastapi import FastAPI, HTTPException  
-
-
-from pydantic import BaseModel  
-
-from typing import List, Optional  
-
-
-
+import logging
+import os
+import uuid
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Any, Literal
 from dotenv import load_dotenv
-load_dotenv(override=True)  
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field, HttpUrl
+from ComplianceQAPipeline.backend.src.api.telemetry import setup_telemetry 
+from ComplianceQAPipeline.backend.src.graph.workflow import app as compliance_graph
 
 
-# INITIALIZE TELEMETRY
-from backend.src.api.telemetry import setup_telemetry
-setup_telemetry()  
+# Load environment variables from .env file
+load_dotenv(override=True)
 
+# Configure logging
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+)
+logger = logging.getLogger("brand-guardian-api")
 
-# IMPORT WORKFLOW GRAPH 
-from backend.src.graph.workflow import app as compliance_graph
+BACKEND_API_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = BACKEND_API_DIR.parents[2]
+FRONTEND_DIR = PROJECT_DIR / "frontend"
+FRONTEND_ENTRYPOINT = FRONTEND_DIR / "index.html"
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
+def _get_allowed_origins() -> list[str]:
+    raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+    env_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+    return env_origins or DEFAULT_ALLOWED_ORIGINS
 
-# CONFIGURE LOGGING 
-logging.basicConfig(level=logging.INFO)  
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    setup_telemetry()
+    logger.info("Brand Guardian API starting up")
+    yield
+    logger.info("Brand Guardian API shutting down")
 
-
-logger = logging.getLogger("api-server")  
-
-
-# FASTAPI APPLICATION 
+# Initialize FastAPI app with lifespan for telemetry setup
 app = FastAPI(
-    title="Brand Guardian AI API",
-    description="API for auditing video content against brand compliance rules.",
-    version="1.0.0"
+    title="Brand Guardian AI",
+    description="End-to-end multimodal compliance audit application for brand and regulatory reviews.",
+    version="2.1.0",
+    lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_get_allowed_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# DEFINE DATA MODELS 
+if FRONTEND_DIR.exists():
+    app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
 class AuditRequest(BaseModel):
-    """
-    Defines the expected structure of incoming API requests.
-    
-    Pydantic validates that:
-    - The request contains a 'video_url' field
-    - The value is a string (not int, list, etc.)
-    
-    Example valid request:
-    {
-        "video_url": "https://youtu.be/abc123"
-    }
-    
-    """
-    video_url: str 
+    video_url: HttpUrl = Field(..., description="Public YouTube URL to audit.")
 
-
-class ComplianceIssue(BaseModel):
-    """
-    Defines the structure of a single compliance violation.
-    
-    Used inside AuditResponse to represent each violation found.
-    """
-    category: str     
-    severity: str      
-    description: str   
-
+class ComplianceIssueResponse(BaseModel):
+    category: str
+    severity: str
+    description: str
+    timestamp: str | None = None
 
 class AuditResponse(BaseModel):
-    """
-    Defines the structure of API responses.
-    
-    FastAPI uses this to:
-    1. Validate the response before sending (catches bugs)
-    2. Auto-generate API documentation (shows users what to expect)
-    3. Provide type hints for frontend developers
-    
-    Example response:
-    {
-        "session_id": "ce6c43bb-c71a-4f16-a377-8b493502fee2",
-        "video_id": "vid_ce6c43bb",
-        "status": "FAIL",
-        "final_report": "Video contains 2 critical violations...",
-        "compliance_results": [
-            {
-                "category": "Misleading Claims",
-                "severity": "CRITICAL",
-                "description": "Absolute guarantee at 00:32"
-            }
-        ]
+    session_id: str
+    video_id: str
+    status: Literal["PASS", "FAIL", "UNKNOWN"]
+    final_report: str
+    compliance_results: list[ComplianceIssueResponse]
+    errors: list[str] = Field(default_factory=list)
+
+class AppConfigResponse(BaseModel):
+    app_name: str
+    app_version: str
+    environment: str
+    allowed_origins: list[str]
+    features: dict[str, Any]
+
+
+@app.get("/", response_class=FileResponse, include_in_schema=False)
+def serve_frontend() -> FileResponse:
+    if not FRONTEND_ENTRYPOINT.exists():
+        raise HTTPException(status_code=404, detail="Frontend assets were not found.")
+    return FileResponse(FRONTEND_ENTRYPOINT)
+
+
+@app.get("/api/health")
+def health_check() -> dict[str, Any]:
+    return {
+        "status": "healthy",
+        "service": "Brand Guardian AI",
+        "environment": os.getenv("APP_ENV", "development"),
     }
-    """
-    session_id: str                         
-    video_id: str                            
-    status: str                               
-    final_report: str                        
-    compliance_results: List[ComplianceIssue] 
+
+@app.get("/api/config", response_model=AppConfigResponse)
+def app_config() -> AppConfigResponse:
+    return AppConfigResponse(
+        app_name=app.title,
+        app_version=app.version,
+        environment=os.getenv("APP_ENV", "development"),
+        allowed_origins=_get_allowed_origins(),
+        features={
+            "azure_monitor": bool(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")),
+            "knowledge_base_index": os.getenv("AZURE_SEARCH_INDEX_NAME", "not-configured"),
+            "frontend": FRONTEND_ENTRYPOINT.exists(),
+            "frontend_path": str(FRONTEND_DIR.relative_to(PROJECT_DIR)) if FRONTEND_DIR.exists() else "missing",
+        },
+    )
 
 
-# MAIN ENDPOINT 
-@app.post("/audit", response_model=AuditResponse)
-async def audit_video(request: AuditRequest):
-    """
-    Process:
-    1. Generate unique session ID
-    2. Prepare input for LangGraph workflow
-    3. Invoke the graph (Indexer → Auditor)
-    4. Return formatted results
-    """
-    
-    session_id = str(uuid.uuid4())  
-    # Creates unique ID like: "ce6c43bb-c71a-4f16-a377-8b493502fee2"
-    
-    video_id_short = f"vid_{session_id[:8]}"  
-    # Takes first 8 characters: "vid_ce6c43bb"
-    
-    logger.info(f"Received Audit Request: {request.video_url} (Session: {session_id})")
-    # Example output: "Received Audit Request: https://youtu.be/abc (Session: ce6c43bb...)"
+@app.post("/api/audit", response_model=AuditResponse)
+async def audit_video(request: AuditRequest) -> AuditResponse:
+    session_id = str(uuid.uuid4())
+    video_id_short = f"vid_{session_id[:8]}"
+
+    logger.info("Received audit request for %s (session=%s)", request.video_url, session_id)
 
     initial_inputs = {
-        "video_url": request.video_url,  
-        "video_id": video_id_short,      
-        "compliance_results": [],        
-        "errors": []                     
+        "video_url": str(request.video_url),
+        "video_id": video_id_short,
+        "compliance_results": [],
+        "errors": [],
     }
-
     try:
-        final_state = compliance_graph.invoke(initial_inputs)
+        final_state = await compliance_graph.ainvoke(initial_inputs)   # changed from invoke to ainvoke for async execution
         return AuditResponse(
             session_id=session_id,
-            video_id=final_state.get("video_id"),  
-            status=final_state.get("final_status", "UNKNOWN"),  
+            video_id=final_state.get("video_id", video_id_short),
+            status=final_state.get("final_status", "UNKNOWN"),
             final_report=final_state.get("final_report", "No report generated."),
-            compliance_results=final_state.get("compliance_results", [])
+            compliance_results=final_state.get("compliance_results", []),
+            errors=final_state.get("errors", []),
         )
-        # FastAPI automatically converts this Pydantic object to JSON
-
-    except Exception as e:
-        logger.error(f"Audit Failed: {str(e)}")  
+    except Exception as exc:
+        logger.exception("Audit failed for session=%s", session_id)
         raise HTTPException(
-            status_code=500, 
-            detail=f"Workflow Execution Failed: {str(e)}"
-        )
-       
-
-#  HEALTH CHECK ENDPOINT 
-@app.get("/health")
-def health_check():
-    """
-    Simple endpoint to verify the API is running.
-    
-    """
-    return {"status": "healthy", "service": "Brand Guardian AI"}
+            status_code=500,
+            detail={
+                "message": "Workflow execution failed.",
+                "session_id": session_id,
+                "error": str(exc),
+            },
+        ) from exc

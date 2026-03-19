@@ -10,10 +10,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage
 
 # Import the State schema .
-from backend.src.graph.state import VideoAuditState, ComplianceIssue
+from ComplianceQAPipeline.backend.src.graph.state import VideoAuditState, ComplianceIssue
 
 # Import the Service
-from backend.src.services.video_indexer import VideoIndexerService
+from ComplianceQAPipeline.backend.src.services.video_indexer import VideoIndexerService
 
 # Configure Logger
 logger = logging.getLogger("brand-guardian")

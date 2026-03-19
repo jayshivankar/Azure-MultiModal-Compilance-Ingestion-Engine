@@ -12,10 +12,10 @@ Architecture:
 from langgraph.graph import StateGraph, END ,START
 
 # Import the State Schema
-from backend.src.graph.state import VideoAuditState
+from ComplianceQAPipeline.backend.src.graph.state import VideoAuditState
 
 # Import the Functional Nodes
-from backend.src.graph.nodes import (
+from ComplianceQAPipeline.backend.src.graph.nodes import (
     index_video_node,
     audit_content_node
 )
