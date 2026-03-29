@@ -1,5 +1,7 @@
 const state = {
   submitting: false,
+  pollingTimer: null,
+  activeSessionId: null,
 };
 
 const dom = {
@@ -9,6 +11,7 @@ const dom = {
   empty: document.getElementById('results-empty'),
   content: document.getElementById('results-content'),
   status: document.getElementById('result-status'),
+  statusCaption: document.getElementById('result-status-caption'),
   sessionId: document.getElementById('result-session-id'),
   videoId: document.getElementById('result-video-id'),
   report: document.getElementById('result-report'),
@@ -21,7 +24,16 @@ const dom = {
   searchIndex: document.getElementById('search-index-value'),
   monitoring: document.getElementById('monitoring-value'),
   frontend: document.getElementById('frontend-value'),
+  progressBadge: document.getElementById('progress-badge'),
+  progressSteps: Array.from(document.querySelectorAll('.progress-step')),
 };
+
+function stopPolling() {
+  if (state.pollingTimer) {
+    clearTimeout(state.pollingTimer);
+    state.pollingTimer = null;
+  }
+}
 
 function setFeedback(message, tone = 'neutral') {
   dom.feedback.textContent = message;
@@ -32,11 +44,24 @@ function setSubmitting(isSubmitting) {
   state.submitting = isSubmitting;
   const submitButton = dom.form.querySelector('button[type="submit"]');
   submitButton.disabled = isSubmitting;
-  submitButton.textContent = isSubmitting ? 'Running audit…' : 'Audit video';
+  submitButton.textContent = isSubmitting ? 'Queueing audit…' : 'Audit video';
 }
 
-function renderIssues(issues = []) {
+function renderIssues(issues = [], isPending = false) {
   dom.issuesList.innerHTML = '';
+
+  if (isPending) {
+    const pendingItem = document.createElement('li');
+    pendingItem.className = 'issue-card issue-card-pending';
+    pendingItem.innerHTML = `
+      <div>
+        <strong>Audit in progress</strong>
+        <p>The backend is still processing the video and compliance checks.</p>
+      </div>
+    `;
+    dom.issuesList.appendChild(pendingItem);
+    return;
+  }
 
   if (!issues.length) {
     const emptyItem = document.createElement('li');
@@ -83,16 +108,66 @@ function renderErrors(errors = []) {
   }
 }
 
+function applyStatusStyle(jobStatus, finalStatus) {
+  const normalizedJobStatus = jobStatus || 'QUEUED';
+  const normalizedFinalStatus = finalStatus || 'UNKNOWN';
+
+  if (normalizedJobStatus === 'COMPLETED' && normalizedFinalStatus === 'PASS') {
+    dom.status.className = 'status-pass';
+    dom.progressBadge.className = 'pill pill-success';
+    dom.progressBadge.textContent = 'Completed';
+    return;
+  }
+
+  if (normalizedJobStatus === 'FAILED' || normalizedFinalStatus === 'FAIL') {
+    dom.status.className = 'status-fail';
+    dom.progressBadge.className = 'pill pill-danger';
+    dom.progressBadge.textContent = 'Failed';
+    return;
+  }
+
+  dom.status.className = 'status-pending';
+  dom.progressBadge.className = normalizedJobStatus === 'QUEUED' ? 'pill pill-neutral' : 'pill pill-warning';
+  dom.progressBadge.textContent = normalizedJobStatus === 'QUEUED' ? 'Queued' : 'Processing';
+}
+
+function renderProgress(jobStatus) {
+  const normalized = jobStatus || 'QUEUED';
+  const activeSteps = {
+    QUEUED: ['queued'],
+    PROCESSING: ['queued', 'processing'],
+    COMPLETED: ['queued', 'processing', 'completed'],
+    FAILED: ['queued', 'processing', 'failed'],
+  }[normalized] || ['queued'];
+
+  for (const step of dom.progressSteps) {
+    const stepName = step.dataset.step;
+    step.classList.toggle('progress-step-active', activeSteps.includes(stepName));
+    step.classList.toggle('progress-step-failed', normalized === 'FAILED' && stepName === 'failed');
+  }
+}
+
 function renderAuditResult(result) {
+  const isPending = result.job_status === 'QUEUED' || result.job_status === 'PROCESSING';
+  const statusLabel = isPending ? result.job_status : result.final_status;
+
   dom.empty.classList.add('hidden');
   dom.content.classList.remove('hidden');
-  dom.status.textContent = result.status;
-  dom.status.className = result.status === 'PASS' ? 'status-pass' : 'status-fail';
+  dom.status.textContent = statusLabel;
+  dom.statusCaption.textContent = isPending
+    ? 'Background processing is still running. The UI will refresh automatically.'
+    : result.final_status === 'PASS'
+      ? 'The audit completed successfully and no blocking issues were found.'
+      : 'The audit completed with issues or captured processing errors.';
+  applyStatusStyle(result.job_status, result.final_status);
+  renderProgress(result.job_status);
   dom.sessionId.textContent = result.session_id;
   dom.videoId.textContent = result.video_id;
   dom.report.textContent = result.final_report;
-  dom.issueCount.textContent = `${result.compliance_results.length} issue${result.compliance_results.length === 1 ? '' : 's'}`;
-  renderIssues(result.compliance_results);
+  dom.issueCount.textContent = isPending
+    ? 'Processing…'
+    : `${result.compliance_results.length} issue${result.compliance_results.length === 1 ? '' : 's'}`;
+  renderIssues(result.compliance_results, isPending);
   renderErrors(result.errors || []);
 }
 
@@ -115,7 +190,7 @@ async function loadSystemStatus() {
     dom.environment.textContent = config.environment;
     dom.searchIndex.textContent = config.features.knowledge_base_index;
     dom.monitoring.textContent = config.features.azure_monitor ? 'Enabled' : 'Disabled';
-    dom.frontend.textContent = config.features.frontend ? 'Ready' : 'Missing assets';
+    dom.frontend.textContent = `${config.features.frontend ? 'Ready' : 'Missing assets'} (${config.features.audit_mode})`;
   } catch (error) {
     dom.healthPill.textContent = 'Unavailable';
     dom.healthPill.className = 'pill pill-danger';
@@ -123,6 +198,39 @@ async function loadSystemStatus() {
     dom.searchIndex.textContent = 'Unknown';
     dom.monitoring.textContent = 'Unknown';
     dom.frontend.textContent = 'Unknown';
+    setFeedback(error.message, 'error');
+  }
+}
+
+async function pollAuditStatus(sessionId) {
+  try {
+    const response = await fetch(`/api/audit/${sessionId}`);
+    const payload = await response.json();
+
+    if (!response.ok) {
+      const errorMessage = payload?.detail || 'Unable to fetch audit status.';
+      throw new Error(errorMessage);
+    }
+
+    renderAuditResult(payload);
+
+    if (payload.job_status === 'QUEUED' || payload.job_status === 'PROCESSING') {
+      setFeedback('Audit accepted and still processing in the background. This prevents request timeouts.', 'neutral');
+      state.pollingTimer = setTimeout(() => pollAuditStatus(sessionId), 5000);
+      return;
+    }
+
+    setSubmitting(false);
+    stopPolling();
+    if (payload.job_status === 'COMPLETED') {
+      setFeedback('Audit completed successfully.', 'success');
+      return;
+    }
+
+    setFeedback('Audit finished with a failure state. Review the captured errors below.', 'error');
+  } catch (error) {
+    setSubmitting(false);
+    stopPolling();
     setFeedback(error.message, 'error');
   }
 }
@@ -139,8 +247,9 @@ async function handleSubmit(event) {
     return;
   }
 
+  stopPolling();
   setSubmitting(true);
-  setFeedback('Submitting the video to the compliance pipeline. This may take a few minutes.', 'neutral');
+  setFeedback('Submitting the audit request. The backend will return immediately and continue processing in the background.', 'neutral');
 
   try {
     const response = await fetch('/api/audit', {
@@ -157,12 +266,16 @@ async function handleSubmit(event) {
       throw new Error(errorMessage);
     }
 
-    renderAuditResult(payload);
-    setFeedback('Audit completed successfully.', 'success');
+    state.activeSessionId = payload.session_id;
+    renderAuditResult({
+      ...payload,
+      compliance_results: [],
+      errors: [],
+    });
+    state.pollingTimer = setTimeout(() => pollAuditStatus(payload.session_id), 1500);
   } catch (error) {
-    setFeedback(error.message, 'error');
-  } finally {
     setSubmitting(false);
+    setFeedback(error.message, 'error');
   }
 }
 

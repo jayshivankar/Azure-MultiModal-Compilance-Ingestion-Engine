@@ -35,3 +35,4 @@ def setup_telemetry():
     except Exception as e:
         logger.error(f"Failed to initialize Azure Monitor: {e}")
         
+# app link : https://multimodal-compliance-ingestion-bfd4enbadpe4b2er.southeastasia-01.azurewebsites.net/

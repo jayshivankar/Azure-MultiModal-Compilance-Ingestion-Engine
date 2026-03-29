@@ -13,17 +13,35 @@
   <body>
     <div class="page-shell">
       <header class="hero">
-        <div>
+        <div class="hero-copy-block">
           <span class="eyebrow">Production-ready compliance operations</span>
           <h1>Brand Guardian AI</h1>
           <p class="hero-copy">
-            Submit a YouTube video, trigger the multimodal compliance pipeline, and review findings in a clean audit dashboard.
+            Launch compliance audits for video content, track progress in real time, and review a polished findings dashboard built for long-running multimodal analysis.
           </p>
           <div class="hero-actions">
             <a href="#audit-form" class="button button-primary">Start an audit</a>
             <a href="/docs" class="button button-secondary">API docs</a>
           </div>
+          <div class="hero-metrics">
+            <article class="metric-card">
+              <span>Request model</span>
+              <strong>Async polling</strong>
+              <p>Returns immediately and keeps the UI updated.</p>
+            </article>
+            <article class="metric-card">
+              <span>Pipeline</span>
+              <strong>Indexer + Auditor</strong>
+              <p>Video indexing, retrieval, and compliance reasoning.</p>
+            </article>
+            <article class="metric-card">
+              <span>Delivery</span>
+              <strong>Single app</strong>
+              <p>Frontend and API served from one FastAPI service.</p>
+            </article>
+          </div>
         </div>
+
         <section class="status-card" aria-labelledby="system-health-title">
           <div class="status-header">
             <p class="section-label">Service status</p>
@@ -44,10 +62,14 @@
               <dd id="monitoring-value">Loading…</dd>
             </div>
             <div>
-              <dt>Frontend</dt>
+              <dt>Frontend mode</dt>
               <dd id="frontend-value">Loading…</dd>
             </div>
           </dl>
+          <div class="status-note">
+            <strong>Designed for long-running jobs.</strong>
+            <p>The frontend keeps polling so audits don’t hold a single HTTP request open until completion.</p>
+          </div>
         </section>
       </header>
 
@@ -57,8 +79,8 @@
             <p class="section-label">Audit request</p>
             <h2>Run a compliance review</h2>
             <p>
-              Paste a public YouTube URL. The backend downloads the video, sends it to Azure Video Indexer,
-              retrieves compliance guidance from Azure AI Search, and generates a final audit report.
+              Submit a public YouTube URL. The backend downloads the video, sends it to Azure Video Indexer,
+              retrieves compliance guidance from Azure AI Search, and produces a final report.
             </p>
           </div>
           <form id="video-audit-form" class="audit-form">
@@ -75,21 +97,24 @@
               <button type="submit" class="button button-primary">Audit video</button>
             </div>
             <p class="helper-text">
-              The audit can take several minutes depending on video length and Azure Video Indexer processing time.
+              The request returns immediately and the frontend keeps polling for progress so long-running audits do not hit request timeouts.
             </p>
           </form>
           <div id="form-feedback" class="feedback" role="status" aria-live="polite"></div>
         </section>
 
         <section class="panel panel-results" aria-labelledby="results-title">
-          <div class="panel-heading">
-            <p class="section-label">Audit results</p>
-            <h2 id="results-title">Findings dashboard</h2>
+          <div class="panel-heading panel-heading-results">
+            <div>
+              <p class="section-label">Audit results</p>
+              <h2 id="results-title">Findings dashboard</h2>
+            </div>
+            <span id="issue-count" class="pill pill-neutral">0 issues</span>
           </div>
 
           <div id="results-empty" class="empty-state">
             <h3>No audit has run yet</h3>
-            <p>Start with a YouTube URL to generate a compliance report.</p>
+            <p>Start with a YouTube URL to generate a compliance report and see live progress updates.</p>
           </div>
 
           <div id="results-content" class="results hidden">
@@ -97,6 +122,7 @@
               <div>
                 <span class="section-label">Audit status</span>
                 <h3 id="result-status">—</h3>
+                <p id="result-status-caption" class="result-status-caption">Waiting for a new audit request.</p>
               </div>
               <div class="summary-meta">
                 <div>
@@ -110,6 +136,46 @@
               </div>
             </div>
 
+            <article class="report-card progress-card">
+              <div class="progress-card-header">
+                <div>
+                  <h3>Workflow progress</h3>
+                  <p>Track the background lifecycle from queueing to final decision.</p>
+                </div>
+                <span id="progress-badge" class="pill pill-neutral">Waiting</span>
+              </div>
+              <div class="progress-steps">
+                <div class="progress-step" data-step="queued">
+                  <span class="progress-dot"></span>
+                  <div>
+                    <strong>Queued</strong>
+                    <p>Request accepted by the API.</p>
+                  </div>
+                </div>
+                <div class="progress-step" data-step="processing">
+                  <span class="progress-dot"></span>
+                  <div>
+                    <strong>Indexing & analysis</strong>
+                    <p>Video indexing, retrieval, and policy checks in progress.</p>
+                  </div>
+                </div>
+                <div class="progress-step" data-step="completed">
+                  <span class="progress-dot"></span>
+                  <div>
+                    <strong>Completed</strong>
+                    <p>Final findings are ready to review.</p>
+                  </div>
+                </div>
+                <div class="progress-step" data-step="failed">
+                  <span class="progress-dot"></span>
+                  <div>
+                    <strong>Failed</strong>
+                    <p>System or processing issues interrupted the audit.</p>
+                  </div>
+                </div>
+              </div>
+            </article>
+
             <article class="report-card">
               <h3>Executive summary</h3>
               <p id="result-report">—</p>
@@ -118,7 +184,7 @@
             <article class="report-card">
               <div class="violations-header">
                 <h3>Compliance findings</h3>
-                <span id="issue-count" class="pill pill-neutral">0 issues</span>
+                <span class="results-subtle">Structured findings from the final audit response.</span>
               </div>
               <ul id="issues-list" class="issues-list"></ul>
             </article>
