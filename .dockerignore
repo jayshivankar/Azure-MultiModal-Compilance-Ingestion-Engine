@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+*.pyc
+.env
+.vscode
+.python-version
+uv.lock
+node_modules
+frontend/node_modules
+*.log
+temp_video.mp4

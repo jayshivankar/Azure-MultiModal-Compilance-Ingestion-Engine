@@ -28,7 +28,6 @@ This repository currently contains a complete end-to-end implementation under `C
 * [11) Operational notes](#11-operational-notes)
 * [12) Security and responsible use](#12-security-and-responsible-use)
 * [13) Roadmap suggestions](#13-roadmap-suggestions)
-* [14) License](#14-license)
 
 ---
 
