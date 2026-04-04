@@ -164,4 +164,8 @@ cython_debug/
 
 
 # Local YouTube authentication cookies
-# ComplianceQAPipeline/cookies.txt
+ComplianceQAPipeline/cookies.txt
+
+# Temporary downloaded/processed media files
+temp_*.mp4
+*.mp4

@@ -1,5 +1,7 @@
 # Azure MultiModal Compliance Ingestion Engine (Brand Guardian AI)
 
+**Live Demo URL:** [http://brand--Publi-yJqYe8QyIkCq-528690479.ap-south-1.elb.amazonaws.com](http://brand--Publi-yJqYe8QyIkCq-528690479.ap-south-1.elb.amazonaws.com)
+
 A production-grade, multi-agent **multimodal compliance auditing pipeline** designed to automate the process of checking video content against brand and regulatory guidelines. The system ingests public YouTube videos, extracts multimodal signals (Transcript + OCR) using **Azure Video Indexer**, retrieves relevant policy guidance from **Azure AI Search**, and generates structured compliance verdicts using specialized LangGraph **Azure OpenAI Agents**.
 
 ---
