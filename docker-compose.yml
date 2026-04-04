@@ -1,0 +1,57 @@
+version: '3.8'
+
+# =========================================================================
+# Local Development & Orchestration Setup
+# Run all services together: `docker compose up --build`
+# =========================================================================
+
+services:
+  # -----------------------------------------------------------------------
+  # Redis: Distributed rate limiting / Session state backend
+  # -----------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: brand-guardian-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    # Appendonly guarantees data persistence across restarts
+    command: redis-server --appendonly yes --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -----------------------------------------------------------------------
+  # API: FastAPI Multi-Agent Pipeline
+  # -----------------------------------------------------------------------
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: brand-guardian-api
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    # By pulling from a local `.env` and docker-compose context, we simulate ECS
+    environment:
+      # Connect to the Redis service built in this compose file
+      - REDIS_URL=redis://redis:6379/0
+      # Pass through user credentials if they are set in the host environment
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - AZURE_VI_ACCOUNT_ID=${AZURE_VI_ACCOUNT_ID:-}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      # Load base64 cookies locally if testing bot bypass
+      - YOUTUBE_COOKIES_B64=${YOUTUBE_COOKIES_B64:-}
+    volumes:
+      # Mount codebase for live-reload locally (optional depending on dev stage)
+      - ./ComplianceQAPipeline:/app/ComplianceQAPipeline
+
+volumes:
+  redis_data:

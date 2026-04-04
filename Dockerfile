@@ -54,17 +54,24 @@ COPY --from=builder /install /usr/local
 # Copy application source
 COPY . /app/
 
+# Copy entrypoint script and ensure it is executable
+COPY entrypoint.sh /app/
+RUN chmod +x /app/entrypoint.sh
+# Ensure directories have proper permissions if appuser needs to write locally
+RUN chown -R 1000:1000 /app
+
+# Non-root user for security best-practices on ECS
+USER 1000
+
 # ECS HEALTHCHECK — maps directly to the ECS "container health check" setting
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT}/api/health || exit 1
 
-# Non-root user for security best-practices on ECS
-RUN adduser --system --no-create-home --uid 1000 appuser
-USER appuser
-
 EXPOSE ${PORT}
 
-# Startup command
+# Startup via the custom entrypoint script (decodes Base64 secrets)
+ENTRYPOINT ["/app/entrypoint.sh"]
+
 # For ECS: override CMD in the Task Definition to run the worker instead:
 #   CMD ["python", "-m", "ComplianceQAPipeline.backend.src.worker"]
 CMD ["sh", "-c", "uvicorn ComplianceQAPipeline.backend.src.api.server:app \
