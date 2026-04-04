@@ -1,0 +1,68 @@
+# The manifest for the "api" service.
+# Read the full specification for the "Load Balanced Web Service" type at:
+#  https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/
+
+# Your service name will be used in naming your resources like log groups, ECS services, etc.
+name: api
+type: Load Balanced Web Service
+
+# Distribute traffic to your service.
+http:
+  # Requests to this path will be forwarded to your service.
+  # To match all requests you can use the "/" path.
+  path: '/'
+  # You can specify a custom health check path. The default is "/".
+  # healthcheck: '/'
+
+# Configuration for your containers and service.
+image:
+  # Docker build arguments. For additional overrides: https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/#image-build
+  build: Dockerfile
+  # Port exposed through your container to route traffic to it.
+  port: 8000
+
+cpu: 256       # Number of CPU units for the task.
+memory: 512    # Amount of memory in MiB used by the task.
+count: 1       # Number of tasks that should be running in your service.
+exec: true     # Enable running commands in your container.
+network:
+  connect: true # Enable Service Connect for intra-environment traffic between services.
+
+# storage:
+  # readonly_fs: true       # Limit to read-only access to mounted root filesystems.
+
+# Optional fields for more advanced use-cases.
+#
+variables:                    # Pass environment variables as key value pairs.
+  REDIS_URL: "redis://redis.dev.brand-guardian.local:6379/0"
+  ALLOWED_ORIGINS: "*"
+  YOUTUBE_COOKIES_FILE: "/app/ComplianceQAPipeline/cookies.txt"
+
+secrets:
+  APPLICATIONINSIGHTS_CONNECTION_STRING: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/APPLICATIONINSIGHTS_CONNECTION_STRING
+  AZURE_OPENAI_CHAT_DEPLOYMENT: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_OPENAI_CHAT_DEPLOYMENT
+  AZURE_OPENAI_ENDPOINT: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_OPENAI_ENDPOINT
+  AZURE_VI_NAME: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_VI_NAME
+  LANGCHAIN_ENDPOINT: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/LANGCHAIN_ENDPOINT
+  AZURE_OPENAI_EMBEDDING_DEPLOYMENT: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_OPENAI_EMBEDDING_DEPLOYMENT
+  AZURE_SEARCH_API_KEY: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_SEARCH_API_KEY
+  AZURE_SEARCH_INDEX_NAME: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_SEARCH_INDEX_NAME
+  AZURE_STORAGE_CONNECTION_STRING: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_STORAGE_CONNECTION_STRING
+  AZURE_VI_LOCATION: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_VI_LOCATION
+  LANGCHAIN_API_KEY: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/LANGCHAIN_API_KEY
+  AZURE_OPENAI_API_VERSION: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_OPENAI_API_VERSION
+  AZURE_SEARCH_ENDPOINT: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_SEARCH_ENDPOINT
+  AZURE_SUBSCRIPTION_ID: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_SUBSCRIPTION_ID
+  AZURE_VI_ACCOUNT_ID: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_VI_ACCOUNT_ID
+  LANGCHAIN_TRACING_V2: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/LANGCHAIN_TRACING_V2
+  TAVILY_API_KEY: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/TAVILY_API_KEY
+  AZURE_OPENAI_API_KEY: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_OPENAI_API_KEY
+  AZURE_RESOURCE_GROUP: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_RESOURCE_GROUP
+  LANGCHAIN_PROJECT: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/LANGCHAIN_PROJECT
+
+# You can override any of the values defined above by environment.
+#environments:
+#  test:
+#    count: 2               # Number of tasks to run for the "test" environment.
+#    deployment:            # The deployment strategy for the "test" environment.
+#       rolling: 'recreate' # Stops existing tasks before new ones are started for faster deployments.
