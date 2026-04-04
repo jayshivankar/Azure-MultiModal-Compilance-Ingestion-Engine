@@ -1,59 +1,115 @@
 """
-Workflow Definition for the Brand Guardian AI.
+Workflow Definition — Brand Guardian AI (v2.0 Multi-Agent)
 
-This module defines the Directed Acyclic Graph (DAG) that orchestrates the
-video compliance audit process. It connects the nodes (functional units)
-using the StateGraph primitive from LangGraph.
+Graph topology:
+                        ┌─────────┐
+                        │  START  │
+                        └────┬────┘
+                             │
+                        ┌────▼────┐
+                        │ Indexer │  (download + Azure VI)
+                        └────┬────┘
+                             │
+                        ┌────▼──────┐
+                        │ Supervisor│  (routing + log)
+                        └────┬──────┘
+                    ┌────────┴────────┐
+                    │                 │
+              ┌─────▼──────┐  ┌──────▼──────┐
+              │ Audio Agent│  │ Visual Agent│
+              └─────┬──────┘  └──────┬──────┘
+                    └────────┬────────┘
+                             │
+                        ┌────▼────┐
+                        │ Critic  │◄─── (re-route if needs_revision)
+                        └────┬────┘
+                             │
+                          ┌──▼──┐
+                          │ END │
+                          └─────┘
 
-Architecture:
-    [START] -> [index_video_node] -> [audit_content_node] -> [END]
+Conditional routing:
+  • After Supervisor  → agents run in parallel (audio + visual)
+  • After Critic      → if needs_revision AND cycles < MAX → back to supervisor
+                        else → END
 """
 
-from langgraph.graph import StateGraph, END ,START
+from langgraph.graph import END, START, StateGraph
 
-# Import the State Schema
 from ComplianceQAPipeline.backend.src.graph.state import VideoAuditState
-
-# Import the Functional Nodes
 from ComplianceQAPipeline.backend.src.graph.nodes import (
+    audio_agent_node,
+    critic_agent_node,
     index_video_node,
-    audit_content_node
+    supervisor_node,
+    visual_agent_node,
+    MAX_CRITIC_CYCLES,
 )
 
-def create_graph():
-    """
-    Constructs and compiles the LangGraph workflow.
 
-    Returns:
-        CompiledGraph: A runnable graph object ready for execution.
+# ---------------------------------------------------------------------------
+# Conditional edge: should Critic loop or end?
+# ---------------------------------------------------------------------------
+
+def route_after_critic(state: VideoAuditState) -> str:
     """
-    # 1. Initialize the Graph with the State Schema
-    # This ensures all nodes adhere to the 'VideoAuditState' data structure.
+    Returns "supervisor" to re-run agents if the Critic requested revision
+    AND we haven't hit the max cycle limit yet.
+    Returns "end" otherwise.
+    """
+    cycles = state.get("critic_cycles", 0)
+    # Critic sets audio_findings=[] / visual_findings=[] when it wants a revision.
+    # We detect this by checking whether final_status has been set.
+    has_final_verdict = bool(state.get("final_status") and state.get("final_report"))
+
+    if not has_final_verdict and cycles < MAX_CRITIC_CYCLES:
+        return "supervisor"   # loop back
+    return "end"
+
+
+# ---------------------------------------------------------------------------
+# Graph construction
+# ---------------------------------------------------------------------------
+
+def create_graph():
+    """Builds and compiles the multi-agent LangGraph workflow."""
+
     workflow = StateGraph(VideoAuditState)
 
-    # 2. Add Nodes (The Workers)
-    # The first argument is the unique name of the node in the graph.
-    # The second argument is the function to execute.
-    workflow.add_node("indexer", index_video_node)
-    workflow.add_node("auditor", audit_content_node)
+    # ── Register nodes ──────────────────────────────────────────────────────
+    workflow.add_node("indexer",       index_video_node)
+    workflow.add_node("supervisor",    supervisor_node)
+    workflow.add_node("audio_agent",   audio_agent_node)
+    workflow.add_node("visual_agent",  visual_agent_node)
+    workflow.add_node("critic",        critic_agent_node)
 
-    # 3. Define Edges (The Logic Flow)
-    # Define the entry point: When the graph starts, go to 'indexer'.
-    workflow.add_edge(START,"indexer")
+    # ── Static edges ────────────────────────────────────────────────────────
+    workflow.add_edge(START,        "indexer")
+    workflow.add_edge("indexer",    "supervisor")
 
-    # Connect 'indexer' -> 'auditor'
-    # Once the video is indexed (transcript extracted), move to compliance auditing.
-    workflow.add_edge("indexer", "auditor")
+    # Supervisor → both agents (parallel fan-out)
+    workflow.add_edge("supervisor", "audio_agent")
+    workflow.add_edge("supervisor", "visual_agent")
 
-    # Connect 'auditor' -> END
-    # Once the audit is complete, the workflow finishes.
-    workflow.add_edge("auditor", END)
+    # Both agents → critic (fan-in)
+    workflow.add_edge("audio_agent",  "critic")
+    workflow.add_edge("visual_agent", "critic")
 
-    # 4. Compile the Graph
-    # This validates the connections and creates the executable runnable.
+    # ── Conditional edge from Critic ─────────────────────────────────────
+    workflow.add_conditional_edges(
+        "critic",
+        route_after_critic,
+        {
+            "supervisor": "supervisor",  # revision loop
+            "end": END,                  # pipeline complete
+        },
+    )
+
+    # ── Compile ──────────────────────────────────────────────────────────────
     app = workflow.compile()
 
     return app
 
-# Expose the runnable app for import by the API or CLI
+
+# Expose compiled graph for import by the API and CLI
 app = create_graph()

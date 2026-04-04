@@ -1,128 +1,111 @@
 """
-Main Execution Entry Point for Brand Guardian AI.
+CLI Entry Point — Brand Guardian AI (v2.0 Multi-Agent)
 
-This file is the "control center" that starts and manages the entire 
-compliance audit workflow. Think of it as the master switch that:
-1. Sets up the audit request
-2. Runs the AI workflow
-3. Displays the final compliance report
+Runs a quick end-to-end simulation of the multi-agent compliance
+audit pipeline directly from the terminal, without starting the
+FastAPI server. Useful for local testing and CI smoke-tests.
+
+Usage:
+    python ComplianceQAPipeline/main.py
 """
 
-# Standard library imports for basic Python functionality
-import uuid      
-import json      
-import logging  
+import json
+import logging
+import uuid
+
 from dotenv import load_dotenv
 
-load_dotenv(override=True)  # override=True means .env values take priority over system variables
+load_dotenv(override=True)
 
-# Import the main workflow graph 
-from backend.src.graph.workflow import app
+from ComplianceQAPipeline.backend.src.graph.workflow import app
 
-# Configure logging 
 logging.basicConfig(
-    level=logging.INFO,        
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'  
-  
+    level=logging.INFO,
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
 )
-logger = logging.getLogger("brand-guardian-runner")
+logger = logging.getLogger("brand-guardian-cli")
 
 
 def run_cli_simulation():
-    """
-    Simulates a Video Compliance Audit request.
-    
-    This function orchestrates the entire audit process:
-    - Creates a unique session ID
-    - Prepares the video URL and metadata
-    - Runs it through the AI workflow
-    - Displays the compliance results
-    """
-    
-    # STEP 1: GENERATE SESSION ID 
-    # Creates a unique identifier for this audit session
-    
-    session_id = str(uuid.uuid4())  
-    logger.info(f"Starting Audit Session: {session_id}") 
+    """Runs a full multi-agent compliance audit and prints the report."""
 
-    # STEP 2: DEFINE INITIAL STATE
-    
+    session_id = str(uuid.uuid4())
+    logger.info(f"Starting CLI Audit Session: {session_id}")
+
+    # Must include ALL required fields from the new VideoAuditState
     initial_inputs = {
-        "video_url": "https://www.youtube.com/watch?v=VW2nUA7yrJw",
-                
-        "video_id": f"vid_{session_id[:8]}",   # Example: "vid_ce6c43bb"
-        
+        "video_url":          "https://www.youtube.com/watch?v=VW2nUA7yrJw",
+        "video_id":           f"vid_{session_id[:8]}",
         "compliance_results": [],
-    
-        "errors": []
+        "agent_logs":         [],
+        "messages":           [],
+        "audio_findings":     [],
+        "visual_findings":    [],
+        "errors":             [],
+        "critic_cycles":      0,
     }
 
-    #  DISPLAY SECTION: INPUT SUMMARY 
-    print("\n--- 1.Input Payload: INITIALIZING WORKFLOW ---")
-    
-    print(f"{json.dumps(initial_inputs, indent=2)}")
+    print("\n" + "═" * 60)
+    print("  BRAND GUARDIAN AI  ·  Multi-Agent Compliance Pipeline")
+    print("═" * 60)
+    print(f"\n📋 Session:   {session_id}")
+    print(f"🔗 Video URL: {initial_inputs['video_url']}")
+    print(f"🆔 Video ID:  {initial_inputs['video_id']}")
+    print("\n⏳ Executing multi-agent graph …\n")
 
-    # STEP 3: EXECUTE GRAPH 
-    # runs the entire workflow
     try:
-        
         final_state = app.invoke(initial_inputs)
-        
-        print("\n--- 2. WORKFLOW EXECUTION COMPLETE ---")
-        
-        # Display a formatted compliance report
-        
-        print("\n=== COMPLIANCE AUDIT REPORT ===")
-        
-        
-        # Displays the video ID that was audited
-        print(f"Video ID:    {final_state.get('video_id')}")
-        
-        # Shows PASS or FAIL status
-        print(f"Status:      {final_state.get('final_status')}")
-        
-        # VIOLATIONS SECTION 
-        print("\n[ VIOLATIONS DETECTED ]")
-        
-        # Extract the list of compliance violations
-        # Default to empty list if no results
-        results = final_state.get('compliance_results', [])
-        
-        if results:
-            # Loop through each violation and display it
-            for issue in results:
-                # Each issue is a dict with: severity, category, description
-                # Example output: "- [CRITICAL] Misleading Claims: Absolute guarantee detected"
-                print(f"- [{issue.get('severity')}] {issue.get('category')}: {issue.get('description')}")
-        else:
-            # No violations found (clean video)
-            print("No violations found.")
 
-        #  SUMMARY SECTION 
-        print("\n[ FINAL SUMMARY ]")
-        
-        print(final_state.get('final_report'))
+        print("\n" + "═" * 60)
+        print("  COMPLIANCE AUDIT REPORT")
+        print("═" * 60)
+
+        status = final_state.get("final_status", "UNKNOWN")
+        status_icon = "✅ PASS" if status == "PASS" else "❌ FAIL"
+        print(f"\nFinal Status:  {status_icon}")
+        print(f"Video ID:      {final_state.get('video_id', '—')}")
+        print(f"Critic Cycles: {final_state.get('critic_cycles', 0)}")
+
+        # ── Agent Logs ──────────────────────────────────────────
+        logs = final_state.get("agent_logs", [])
+        if logs:
+            print("\n── Agent Activity Log ──")
+            for line in logs:
+                print(f"  {line}")
+
+        # ── Findings ────────────────────────────────────────────
+        results = final_state.get("compliance_results", [])
+        print(f"\n── Compliance Findings ({len(results)} issue(s)) ──")
+        if results:
+            for issue in results:
+                sev = issue.get("severity", "?")
+                cat = issue.get("category", "?")
+                src = issue.get("source", "?")
+                desc = issue.get("description", "")
+                ts   = issue.get("timestamp")
+                ts_str = f"  @ {ts}" if ts else ""
+                print(f"  [{sev}] [{src.upper()}] {cat}{ts_str}")
+                print(f"    → {desc}")
+        else:
+            print("  No violations detected.")
+
+        # ── Summary ─────────────────────────────────────────────
+        print("\n── Executive Summary ──")
+        print(f"  {final_state.get('final_report', 'No report generated.')}")
+
+        # ── Errors ──────────────────────────────────────────────
+        errors = final_state.get("errors", [])
+        if errors:
+            print("\n── System Errors ──")
+            for err in errors:
+                print(f"  ⚠️  {err}")
+
+        print("\n" + "═" * 60 + "\n")
 
     except Exception as e:
-        logger.error(f"Workflow Execution Failed: {str(e)}")
-        raise e
-
+        logger.error(f"Pipeline execution failed: {str(e)}")
+        raise
 
 
 if __name__ == "__main__":
-    run_cli_simulation() 
-
-
-
-'''
-Ingestion:  (YouTube -> Azure)
-
-Indexing:  (Speech-to-Text + OCR)
-
-Retrieval:  (Found the rules about "Claims")
-
-Reasoning:  (Applied rules to the specific claims in the video)
-'''
-
-
-## yt-dlp --cookies cookies.txt https://www.youtube.com/watch?v=T3_ZgRfMvs
+    run_cli_simulation()

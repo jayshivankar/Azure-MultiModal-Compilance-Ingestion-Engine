@@ -1,12 +1,49 @@
+# Docker ignore — Brand Guardian AI
+# ─────────────────────────────────────────────────────────────
+# NOTE: cookies.txt is intentionally NOT ignored.
+# It must be present in the Docker image for yt-dlp bot bypass.
+# For ECS production: store it in AWS Secrets Manager and mount
+# it as a volume instead of baking into the image.
+# ─────────────────────────────────────────────────────────────
+
+# Version control
 .git
+.gitignore
+
+# Local virtual environments
 .venv
+ComplianceQAPipeline/.venv
+
+# Python bytecode
 __pycache__
 *.pyc
+*.pyo
+*.pyd
+
+# Local environment file (secrets must come from ECS task definition / Secrets Manager)
 .env
+
+# Editor / IDE
 .vscode
+.idea
+
+# Python version pin (not needed in container)
 .python-version
+
+# Lock files (dependencies installed from pyproject.toml directly)
 uv.lock
+
+# Node (not used in production)
 node_modules
 frontend/node_modules
+
+# Logs and temp files
 *.log
-temp_video.mp4
+temp_*.mp4
+temp_*.mp3
+
+# Test/dev artifacts
+*.pytest_cache
+.pytest_cache
+htmlcov
+.coverage

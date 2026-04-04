@@ -3,199 +3,310 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Brand Guardian AI</title>
+    <title>Brand Guardian AI — Multimodal Compliance Auditor</title>
     <meta
       name="description"
-      content="Audit YouTube videos against brand and regulatory compliance rules using Azure-powered multimodal analysis."
+      content="Multi-agent AI platform for auditing YouTube video content against brand and regulatory compliance guidelines using Azure AI and LangGraph."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
     />
     <link rel="stylesheet" href="/frontend/styles.css" />
   </head>
   <body>
+    <div class="bg-grid"></div>
+    <div class="bg-orbs">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+
     <div class="page-shell">
+
+      <!-- ── NAV ─────────────────────────────────────── -->
+      <nav class="navbar">
+        <div class="nav-brand">
+          <span class="nav-logo">⬡</span>
+          <span class="nav-name">Brand Guardian <span class="nav-version">v2.0</span></span>
+        </div>
+        <div class="nav-status">
+          <span class="status-dot" id="health-dot"></span>
+          <span id="health-label">Checking…</span>
+        </div>
+      </nav>
+
+      <!-- ── HERO ─────────────────────────────────────── -->
       <header class="hero">
-        <div class="hero-copy-block">
-          <span class="eyebrow">Production-ready compliance operations</span>
-          <h1>Brand Guardian AI</h1>
-          <p class="hero-copy">
-            Launch compliance audits for video content, track progress in real time, and review a polished findings dashboard built for long-running multimodal analysis.
+        <div class="hero-text">
+          <div class="eyebrow">
+            <span class="eyebrow-dot"></span>
+            Multi-Agent · Azure AI · LangGraph
+          </div>
+          <h1>Compliance Audit<br /><span class="hero-accent">Powered by AI Agents</span></h1>
+          <p class="hero-sub">
+            A Supervisor orchestrates specialised Audio and Visual agents that query your
+            brand knowledge base and the public web, then a Critic validates every finding
+            before issuing the final verdict.
           </p>
           <div class="hero-actions">
-            <a href="#audit-form" class="button button-primary">Start an audit</a>
-            <a href="/docs" class="button button-secondary">API docs</a>
-          </div>
-          <div class="hero-metrics">
-            <article class="metric-card">
-              <span>Request model</span>
-              <strong>Async polling</strong>
-              <p>Returns immediately and keeps the UI updated.</p>
-            </article>
-            <article class="metric-card">
-              <span>Pipeline</span>
-              <strong>Indexer + Auditor</strong>
-              <p>Video indexing, retrieval, and compliance reasoning.</p>
-            </article>
-            <article class="metric-card">
-              <span>Delivery</span>
-              <strong>Single app</strong>
-              <p>Frontend and API served from one FastAPI service.</p>
-            </article>
+            <a href="#audit-section" class="btn btn-primary" id="cta-start">Start an Audit</a>
+            <a href="/docs" class="btn btn-ghost" target="_blank">API Docs ↗</a>
           </div>
         </div>
 
-        <section class="status-card" aria-labelledby="system-health-title">
-          <div class="status-header">
-            <p class="section-label">Service status</p>
-            <span id="health-pill" class="pill pill-neutral">Checking…</span>
+        <div class="hero-cards">
+          <div class="stat-card glass">
+            <div class="stat-icon">🧠</div>
+            <div class="stat-info">
+              <span>Architecture</span>
+              <strong>Multi-Agent</strong>
+            </div>
           </div>
-          <h2 id="system-health-title">System readiness</h2>
-          <dl class="status-grid">
-            <div>
-              <dt>Environment</dt>
-              <dd id="environment-value">Loading…</dd>
+          <div class="stat-card glass">
+            <div class="stat-icon">🔍</div>
+            <div class="stat-info">
+              <span>Modalities</span>
+              <strong>Audio + Visual</strong>
             </div>
-            <div>
-              <dt>Search index</dt>
-              <dd id="search-index-value">Loading…</dd>
-            </div>
-            <div>
-              <dt>Azure Monitor</dt>
-              <dd id="monitoring-value">Loading…</dd>
-            </div>
-            <div>
-              <dt>Frontend mode</dt>
-              <dd id="frontend-value">Loading…</dd>
-            </div>
-          </dl>
-          <div class="status-note">
-            <strong>Designed for long-running jobs.</strong>
-            <p>The frontend keeps polling so audits don’t hold a single HTTP request open until completion.</p>
           </div>
-        </section>
+          <div class="stat-card glass">
+            <div class="stat-icon">⚖️</div>
+            <div class="stat-info">
+              <span>Critic Loops</span>
+              <strong>Self-Reflective</strong>
+            </div>
+          </div>
+          <div class="stat-card glass">
+            <div class="stat-icon">📡</div>
+            <div class="stat-info">
+              <span>Updates</span>
+              <strong>Live Streaming</strong>
+            </div>
+          </div>
+        </div>
       </header>
 
-      <main class="dashboard">
-        <section class="panel panel-form" id="audit-form">
-          <div class="panel-heading">
-            <p class="section-label">Audit request</p>
-            <h2>Run a compliance review</h2>
-            <p>
-              Submit a public YouTube URL. The backend downloads the video, sends it to Azure Video Indexer,
-              retrieves compliance guidance from Azure AI Search, and produces a final report.
-            </p>
-          </div>
-          <form id="video-audit-form" class="audit-form">
-            <label for="video-url">YouTube video URL</label>
-            <div class="input-row">
-              <input
-                id="video-url"
-                name="video_url"
-                type="url"
-                inputmode="url"
-                placeholder="https://www.youtube.com/watch?v=..."
-                required
-              />
-              <button type="submit" class="button button-primary">Audit video</button>
+      <!-- ── SYSTEM STATUS ──────────────────────────── -->
+      <section class="system-bar glass" aria-label="System status">
+        <div class="sys-item">
+          <span class="sys-label">Environment</span>
+          <span class="sys-value" id="cfg-environment">—</span>
+        </div>
+        <div class="sys-divider"></div>
+        <div class="sys-item">
+          <span class="sys-label">Search Index</span>
+          <span class="sys-value" id="cfg-index">—</span>
+        </div>
+        <div class="sys-divider"></div>
+        <div class="sys-item">
+          <span class="sys-label">Rate Limiter</span>
+          <span class="sys-value" id="cfg-ratelimit">—</span>
+        </div>
+        <div class="sys-divider"></div>
+        <div class="sys-item">
+          <span class="sys-label">Azure Monitor</span>
+          <span class="sys-value" id="cfg-monitor">—</span>
+        </div>
+        <div class="sys-divider"></div>
+        <div class="sys-item">
+          <span class="sys-label">Tavily Search</span>
+          <span class="sys-value" id="cfg-tavily">—</span>
+        </div>
+      </section>
+
+      <!-- ── MAIN CONTENT ───────────────────────────── -->
+      <main class="content-grid" id="audit-section">
+
+        <!-- LEFT: Form + Agent Terminal -->
+        <div class="col-left">
+
+          <!-- Audit form -->
+          <section class="card" id="form-card">
+            <div class="card-header">
+              <h2>Run a Compliance Audit</h2>
+              <span class="badge badge-blue">YouTube</span>
             </div>
-            <p class="helper-text">
-              The request returns immediately and the frontend keeps polling for progress so long-running audits do not hit request timeouts.
+            <p class="card-desc">
+              Enter a public YouTube URL. The multi-agent pipeline will automatically
+              download, index, analyse, and validate the content.
             </p>
-          </form>
-          <div id="form-feedback" class="feedback" role="status" aria-live="polite"></div>
-        </section>
 
-        <section class="panel panel-results" aria-labelledby="results-title">
-          <div class="panel-heading panel-heading-results">
-            <div>
-              <p class="section-label">Audit results</p>
-              <h2 id="results-title">Findings dashboard</h2>
-            </div>
-            <span id="issue-count" class="pill pill-neutral">0 issues</span>
-          </div>
-
-          <div id="results-empty" class="empty-state">
-            <h3>No audit has run yet</h3>
-            <p>Start with a YouTube URL to generate a compliance report and see live progress updates.</p>
-          </div>
-
-          <div id="results-content" class="results hidden">
-            <div class="result-summary">
-              <div>
-                <span class="section-label">Audit status</span>
-                <h3 id="result-status">—</h3>
-                <p id="result-status-caption" class="result-status-caption">Waiting for a new audit request.</p>
+            <form id="audit-form" class="audit-form" autocomplete="off">
+              <label for="video-url" class="field-label">YouTube Video URL</label>
+              <div class="input-group">
+                <span class="input-icon">▶</span>
+                <input
+                  id="video-url"
+                  name="video_url"
+                  type="url"
+                  inputmode="url"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  required
+                  maxlength="200"
+                />
+                <button type="submit" class="btn btn-primary btn-submit" id="submit-btn">
+                  Audit Video
+                </button>
               </div>
-              <div class="summary-meta">
-                <div>
+              <p class="field-hint">
+                Supports standard YouTube URLs and Shorts. Max 200 characters.
+              </p>
+            </form>
+
+            <div id="form-feedback" class="feedback" role="status" aria-live="polite"></div>
+
+            <!-- Rate-limit notice -->
+            <div class="rate-info">
+              <span class="rate-icon">🛡</span>
+              API is rate-limited to <strong>5 requests / minute</strong> per IP address.
+            </div>
+          </section>
+
+          <!-- Agent Terminal (SSE streamed thought process) -->
+          <section class="card terminal-card hidden" id="terminal-section">
+            <div class="card-header">
+              <div class="terminal-header-left">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+                <h2 class="terminal-title">Agent Terminal</h2>
+              </div>
+              <span class="badge badge-yellow" id="terminal-badge">Live</span>
+            </div>
+            <div class="terminal-body" id="terminal-body" aria-live="polite" aria-label="Agent activity log">
+              <div class="terminal-placeholder">
+                Waiting for agent activity…
+              </div>
+            </div>
+          </section>
+
+        </div>
+
+        <!-- RIGHT: Results -->
+        <div class="col-right">
+
+          <!-- Empty state -->
+          <div class="empty-state" id="results-empty">
+            <div class="empty-icon">🔬</div>
+            <h3>No audit running yet</h3>
+            <p>Submit a YouTube URL to start the multi-agent compliance analysis pipeline.</p>
+          </div>
+
+          <!-- Results card (shown once an audit is submitted) -->
+          <div id="results-wrap" class="hidden">
+
+            <!-- Session meta -->
+            <div class="card meta-card glass" id="meta-card">
+              <div class="meta-row">
+                <div class="meta-item">
                   <span>Session ID</span>
-                  <strong id="result-session-id">—</strong>
+                  <code id="r-session-id">—</code>
                 </div>
-                <div>
+                <div class="meta-item">
                   <span>Video ID</span>
-                  <strong id="result-video-id">—</strong>
+                  <code id="r-video-id">—</code>
+                </div>
+                <div class="meta-item">
+                  <span>Job Status</span>
+                  <span class="badge" id="r-job-badge">—</span>
                 </div>
               </div>
             </div>
 
-            <article class="report-card progress-card">
-              <div class="progress-card-header">
-                <div>
-                  <h3>Workflow progress</h3>
-                  <p>Track the background lifecycle from queueing to final decision.</p>
-                </div>
-                <span id="progress-badge" class="pill pill-neutral">Waiting</span>
+            <!-- Agent pipeline progress -->
+            <div class="card" id="pipeline-card">
+              <div class="card-header">
+                <h2>Pipeline Progress</h2>
+                <span class="badge" id="pipeline-badge">Waiting</span>
               </div>
-              <div class="progress-steps">
-                <div class="progress-step" data-step="queued">
-                  <span class="progress-dot"></span>
-                  <div>
-                    <strong>Queued</strong>
-                    <p>Request accepted by the API.</p>
+              <div class="pipeline-steps">
+                <div class="pipe-step" data-step="indexer" id="step-indexer">
+                  <div class="pipe-icon">📥</div>
+                  <div class="pipe-text">
+                    <strong>Indexer</strong>
+                    <p>Download & Azure Video Indexer</p>
+                  </div>
+                  <span class="pipe-status">–</span>
+                </div>
+                <div class="pipe-connector"></div>
+                <div class="pipe-step" data-step="supervisor" id="step-supervisor">
+                  <div class="pipe-icon">🧠</div>
+                  <div class="pipe-text">
+                    <strong>Supervisor</strong>
+                    <p>Routing & orchestration</p>
+                  </div>
+                  <span class="pipe-status">–</span>
+                </div>
+                <div class="pipe-connector"></div>
+                <div class="pipe-row">
+                  <div class="pipe-step" data-step="audio" id="step-audio">
+                    <div class="pipe-icon">🎙</div>
+                    <div class="pipe-text">
+                      <strong>Audio Agent</strong>
+                      <p>Transcript analysis</p>
+                    </div>
+                    <span class="pipe-status">–</span>
+                  </div>
+                  <div class="pipe-step" data-step="visual" id="step-visual">
+                    <div class="pipe-icon">👁</div>
+                    <div class="pipe-text">
+                      <strong>Visual Agent</strong>
+                      <p>OCR analysis</p>
+                    </div>
+                    <span class="pipe-status">–</span>
                   </div>
                 </div>
-                <div class="progress-step" data-step="processing">
-                  <span class="progress-dot"></span>
-                  <div>
-                    <strong>Indexing & analysis</strong>
-                    <p>Video indexing, retrieval, and policy checks in progress.</p>
+                <div class="pipe-connector"></div>
+                <div class="pipe-step" data-step="critic" id="step-critic">
+                  <div class="pipe-icon">⚖️</div>
+                  <div class="pipe-text">
+                    <strong>Critic Agent</strong>
+                    <p>Self-reflection & validation</p>
                   </div>
-                </div>
-                <div class="progress-step" data-step="completed">
-                  <span class="progress-dot"></span>
-                  <div>
-                    <strong>Completed</strong>
-                    <p>Final findings are ready to review.</p>
-                  </div>
-                </div>
-                <div class="progress-step" data-step="failed">
-                  <span class="progress-dot"></span>
-                  <div>
-                    <strong>Failed</strong>
-                    <p>System or processing issues interrupted the audit.</p>
-                  </div>
+                  <span class="pipe-status">–</span>
                 </div>
               </div>
-            </article>
+            </div>
 
-            <article class="report-card">
-              <h3>Executive summary</h3>
-              <p id="result-report">—</p>
-            </article>
-
-            <article class="report-card">
-              <div class="violations-header">
-                <h3>Compliance findings</h3>
-                <span class="results-subtle">Structured findings from the final audit response.</span>
+            <!-- Verdict card -->
+            <div class="card verdict-card hidden" id="verdict-card">
+              <div class="card-header">
+                <h2>Compliance Verdict</h2>
+                <span class="badge badge-large" id="verdict-badge">—</span>
               </div>
-              <ul id="issues-list" class="issues-list"></ul>
-            </article>
+              <div class="verdict-summary" id="verdict-summary">
+                <p id="r-report">—</p>
+              </div>
+            </div>
 
-            <article id="errors-card" class="report-card hidden">
-              <h3>System errors</h3>
-              <ul id="errors-list" class="issues-list issues-list-errors"></ul>
-            </article>
+            <!-- Findings list -->
+            <div class="card hidden" id="findings-card">
+              <div class="card-header">
+                <h2>Detailed Findings</h2>
+                <span class="badge" id="findings-count">0 issues</span>
+              </div>
+              <ul id="findings-list" class="findings-list"></ul>
+            </div>
+
+            <!-- System errors -->
+            <div class="card error-card hidden" id="errors-card">
+              <div class="card-header">
+                <h2>System Errors</h2>
+              </div>
+              <ul id="errors-list" class="findings-list"></ul>
+            </div>
+
           </div>
-        </section>
+        </div>
+
       </main>
+
+      <footer class="footer">
+        <p>Brand Guardian AI · Multi-Agent Compliance Platform · Powered by Azure OpenAI + LangGraph</p>
+      </footer>
     </div>
 
     <script src="/frontend/app.js" defer></script>
