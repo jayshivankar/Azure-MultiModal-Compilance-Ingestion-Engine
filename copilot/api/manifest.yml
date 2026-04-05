@@ -36,9 +36,9 @@ network:
 variables:                    # Pass environment variables as key value pairs.
   REDIS_URL: "redis://redis.dev.brand-guardian.local:6379/0"
   ALLOWED_ORIGINS: "*"
-  YOUTUBE_COOKIES_FILE: "/app/ComplianceQAPipeline/cookies.txt"
 
 secrets:
+  YOUTUBE_COOKIES_B64: arn:aws:secretsmanager:ap-south-1:347038623936:secret:brand-guardian/youtube-cookies-b64-Ercp1F
   APPLICATIONINSIGHTS_CONNECTION_STRING: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/APPLICATIONINSIGHTS_CONNECTION_STRING
   AZURE_OPENAI_CHAT_DEPLOYMENT: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_OPENAI_CHAT_DEPLOYMENT
   AZURE_OPENAI_ENDPOINT: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/AZURE_OPENAI_ENDPOINT

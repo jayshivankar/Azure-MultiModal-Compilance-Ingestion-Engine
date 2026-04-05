@@ -1,10 +1,12 @@
 # Docker ignore — Brand Guardian AI
 # ─────────────────────────────────────────────────────────────
-# NOTE: cookies.txt is intentionally NOT ignored.
-# It must be present in the Docker image for yt-dlp bot bypass.
-# For ECS production: store it in AWS Secrets Manager and mount
-# it as a volume instead of baking into the image.
+# NOTE: cookies.txt is intentionally ignored here.
+# It is injected securely at runtime via AWS Secrets Manager 
+# (YOUTUBE_COOKIES_B64) into the container.
 # ─────────────────────────────────────────────────────────────
+
+ComplianceQAPipeline/cookies.txt
+
 
 # Version control
 .git
