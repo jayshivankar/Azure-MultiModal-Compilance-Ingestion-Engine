@@ -54,7 +54,7 @@ for _noisy in (
 # Paths
 # ---------------------------------------------------------------------------
 BACKEND_API_DIR   = Path(__file__).resolve().parent
-PROJECT_DIR       = BACKEND_API_DIR.parents[3]
+PROJECT_DIR       = BACKEND_API_DIR.parents[2]
 FRONTEND_DIR      = PROJECT_DIR / "frontend"
 FRONTEND_ENTRYPOINT = FRONTEND_DIR / "index.html"
 
