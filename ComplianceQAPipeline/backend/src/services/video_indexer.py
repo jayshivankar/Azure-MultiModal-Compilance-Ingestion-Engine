@@ -59,6 +59,24 @@ class VideoIndexerService:
         self.credential      = DefaultAzureCredential()
         self.cookies_file    = os.getenv("YOUTUBE_COOKIES_FILE")
 
+        # ── yt-dlp bot-mitigation settings (fully configurable via ECS env vars) ──
+        # Rate throttle: mimic organic download speeds. Default: no limit (local dev).
+        # Production recommendation: "5M" to avoid looking like an automated scraper.
+        self.yt_limit_rate: str | None = os.getenv("YOUTUBE_LIMIT_RATE")          # e.g. "5M"
+
+        # User-Agent: should match the browser you used to export cookies.txt.
+        # If not set, falls back to the hardcoded Chrome UA below.
+        self.yt_user_agent: str | None = os.getenv("YOUTUBE_USER_AGENT")
+
+        # Sleep intervals: add random pauses between fragment requests.
+        # Default: 2–8 seconds (already present in code; can be overridden via env).
+        try:
+            self.yt_sleep_interval: int = int(os.getenv("YOUTUBE_SLEEP_INTERVAL", "2"))
+            self.yt_max_sleep_interval: int = int(os.getenv("YOUTUBE_MAX_SLEEP_INTERVAL", "8"))
+        except ValueError:
+            self.yt_sleep_interval = 2
+            self.yt_max_sleep_interval = 8
+
         # Token cache: {scope: (token, expiry_timestamp)}
         self._token_cache: dict[str, tuple[str, float]] = {}
 
@@ -110,10 +128,25 @@ class VideoIndexerService:
         Downloads a YouTube video to disk, limited to 720p to keep file sizes
         manageable (avoids upload timeouts and connection resets).
 
-        Bot-bypass: cookies.txt + tv_embedded player client.
-        Set YOUTUBE_COOKIES_FILE env var to the Netscape cookies.txt path.
+        Bot-bypass: cookies.txt + tv_embedded player client + configurable
+        rate-limiting and sleep intervals (all tunable via ECS Task env vars).
+
+        Env vars that control bot-mitigation (all optional):
+          YOUTUBE_COOKIES_FILE    — path to a Netscape cookies.txt
+          YOUTUBE_USER_AGENT      — override the User-Agent header
+          YOUTUBE_LIMIT_RATE      — e.g. "5M" to throttle to 5 MB/s
+          YOUTUBE_SLEEP_INTERVAL  — min seconds between fragment requests (default: 2)
+          YOUTUBE_MAX_SLEEP_INTERVAL — max seconds (default: 8)
         """
         logger.info(f"[Downloader] Starting download (max 720p): {url}")
+
+        # Resolve user-agent: prefer env-configured one, fall back to Chrome UA.
+        _default_ua = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        )
+        user_agent = self.yt_user_agent or _default_ua
 
         ydl_opts: dict = {
             # 720p cap: keeps file sizes to ~80-200 MB which upload reliably
@@ -129,33 +162,48 @@ class VideoIndexerService:
             "merge_output_format": "mp4",
             "extractor_args": {
                 "youtube": {
+                    # tv_embedded is least likely to be flagged; web_embedded + android as fallback
                     "player_client": ["tv_embedded", "web_embedded", "android"],
                     "player_skip": ["configs"],
                 }
             },
             "http_headers": {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                ),
+                "User-Agent": user_agent,
                 "Accept-Language": "en-US,en;q=0.9",
             },
             "retries": 5,
             "fragment_retries": 5,
-            "sleep_interval": 2,
-            "max_sleep_interval": 8,
+            # Randomised sleeps prevent a predictable robotic request pattern.
+            "sleep_interval": self.yt_sleep_interval,
+            "max_sleep_interval": self.yt_max_sleep_interval,
             # Cap single-file download at 500 MB as a safety net
             "max_filesize": 500 * 1024 * 1024,
         }
 
+        # Rate throttle — mimic human download speeds to avoid bot flags.
+        if self.yt_limit_rate:
+            ydl_opts["limit_rate"] = self.yt_limit_rate
+            logger.info(f"[Downloader] Rate-limit active: {self.yt_limit_rate}/s")
+        else:
+            logger.info("[Downloader] No rate limit set (YOUTUBE_LIMIT_RATE not configured).")
+
+        logger.info(
+            f"[Downloader] Bot-mitigation config — "
+            f"UA={'custom' if self.yt_user_agent else 'default Chrome'} | "
+            f"sleep={self.yt_sleep_interval}–{self.yt_max_sleep_interval}s | "
+            f"rate={self.yt_limit_rate or 'unlimited'}"
+        )
+
+        # Cookie injection
         if self.cookies_file and os.path.exists(self.cookies_file):
             ydl_opts["cookiefile"] = self.cookies_file
             logger.info(f"[Downloader] Using cookies file: {self.cookies_file}")
         else:
             logger.warning(
-                "[Downloader] YOUTUBE_COOKIES_FILE not set or missing. "
-                "Bot detection bypass is degraded on cloud IPs."
+                "[Downloader] YOUTUBE_COOKIES_FILE not set or file missing. "
+                "Bot detection bypass is significantly degraded on AWS datacenter IPs. "
+                "Export cookies using 'Get cookies.txt LOCALLY' extension and inject via "
+                "YOUTUBE_COOKIES_B64 (Secrets Manager) or YOUTUBE_COOKIES_FILE."
             )
 
         try:
@@ -165,13 +213,15 @@ class VideoIndexerService:
             return output_path
         except yt_dlp.utils.DownloadError as e:
             err = str(e)
-            if "Sign in to confirm" in err or "bot" in err.lower():
+            if "Sign in to confirm" in err or "bot" in err.lower() or "429" in err:
                 raise RuntimeError(
-                    "YouTube bot-detection triggered. "
-                    "Set YOUTUBE_COOKIES_FILE to a valid Netscape cookies.txt "
-                    "exported from a logged-in browser session."
+                    "YouTube bot-detection triggered (HTTP 403/429 or 'Sign in' prompt). "
+                    "AWS datacenter IPs are often pre-blocked. "
+                    "Ensure YOUTUBE_COOKIES_B64 is set with a fresh session cookie. "
+                    "Consider enabling YOUTUBE_LIMIT_RATE=5M and refreshing cookies."
                 ) from e
             raise RuntimeError(f"YouTube download failed: {err}") from e
+
 
     # =========================================================================
     # Azure Blob Storage: upload + SAS URL generation

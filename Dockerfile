@@ -6,10 +6,18 @@
 # Stage 2: Runtime — minimal image, no dev tools
 #
 # ECS deployment notes:
-#   • Set YOUTUBE_COOKIES_FILE via ECS Task Definition secret
-#     (store cookies.txt in AWS Secrets Manager, mount as a volume)
-#   • Set REDIS_URL to your ElastiCache endpoint for shared rate limiting
-#   • HEALTHCHECK maps to the ECS container health check
+#   • YOUTUBE_COOKIES_B64: Store Netscape cookies.txt in AWS Secrets Manager
+#     as a Base64-encoded string. The entrypoint decodes it at startup.
+#   • YOUTUBE_LIMIT_RATE: Throttle yt-dlp download speed (e.g. '5M').
+#   • YOUTUBE_USER_AGENT: Match the browser UA used when generating cookies.
+#   • YOUTUBE_SLEEP_INTERVAL / YOUTUBE_MAX_SLEEP_INTERVAL: Randomize delays.
+#   • REDIS_URL: ElastiCache endpoint for shared rate limiting across replicas.
+#   • HEALTHCHECK maps to the ECS container health check.
+#
+# Bot-detection mitigation (AWS datacenter IPs are often flagged by YouTube):
+#   • Always provide fresh cookies exported from a real browser session.
+#   • Update yt-dlp nightly (handled by the pip install -U step below).
+#   • Throttle speed + randomize sleep intervals to mimic organic traffic.
 # ============================================================
 
 # ── Stage 1: Builder ─────────────────────────────────────────
@@ -29,6 +37,10 @@ COPY README.md ./
 
 # Install the project dependencies into a prefix dir
 RUN pip install --no-cache-dir --prefix=/install .
+
+# Always upgrade yt-dlp to the latest release at build time.
+# yt-dlp releases bot-detection fixes almost daily — staying current is critical.
+RUN pip install --no-cache-dir --prefix=/install -U yt-dlp
 
 # ── Stage 2: Runtime ─────────────────────────────────────────
 FROM python:3.12-slim AS runtime
@@ -64,8 +76,8 @@ RUN chown -R 1000:1000 /app
 USER 1000
 
 # ECS HEALTHCHECK — maps directly to the ECS "container health check" setting
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/api/health || exit 1
+HEALTHCHECK --interval=20s --timeout=15s --start-period=90s --retries=5 \
+    CMD curl -f http://127.0.0.1:${PORT}/api/health || exit 1
 
 EXPOSE ${PORT}
 
@@ -77,6 +89,4 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["sh", "-c", "uvicorn ComplianceQAPipeline.backend.src.api.server:app \
     --host 0.0.0.0 \
     --port ${PORT} \
-    --workers 2 \
-    --loop uvloop \
     --access-log"]

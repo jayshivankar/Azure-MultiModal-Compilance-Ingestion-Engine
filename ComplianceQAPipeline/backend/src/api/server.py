@@ -69,7 +69,11 @@ if _redis_url:
 else:
     _storage_uri = "memory://"
 
-limiter = Limiter(key_func=get_remote_address, storage_uri=_storage_uri)
+limiter = Limiter(
+    key_func=get_remote_address, 
+    storage_uri=_storage_uri,
+    in_memory_fallback_enabled=True  # 🛡 Prevent startup crash if Redis is unavailable
+)
 
 # ---------------------------------------------------------------------------
 # CORS
@@ -201,6 +205,10 @@ def _run_audit_job(session_id: str, initial_inputs: dict[str, Any]) -> None:
 # App lifecycle
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# App lifecycle
+# ---------------------------------------------------------------------------
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     setup_telemetry()
@@ -219,6 +227,41 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ---------------------------------------------------------------------------
+# PRIORITY ROUTES (Evaluated first for Health Checks)
+# ---------------------------------------------------------------------------
+
+@app.get("/", include_in_schema=False)
+def serve_frontend() -> Any:
+    """
+    Serves the frontend index.html if it exists. 
+    Otherwise, returns a healthy JSON status to satisfy Load Balancer audits
+    that check the root path by default.
+    """
+    if FRONTEND_ENTRYPOINT.exists():
+        return FileResponse(FRONTEND_ENTRYPOINT)
+    
+    # 🛡 Fallback to healthy status if frontend is missing (prevents 404 on ALB audits)
+    return {
+        "status": "online",
+        "message": "Brand Guardian AI Backend is running. Frontend assets not found.",
+        "api_docs": "/docs"
+    }
+
+
+@app.get("/api/health")
+def health_check() -> dict[str, Any]:
+    return {
+        "status": "healthy",
+        "service": "Brand Guardian AI",
+        "version": "2.0.0",
+        "environment": os.getenv("APP_ENV", "development"),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+# ---------------------------------------------------------------------------
+# Middleware & Configuration
+# ---------------------------------------------------------------------------
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -301,21 +344,7 @@ class AppConfigResponse(BaseModel):
 # Routes
 # ---------------------------------------------------------------------------
 
-@app.get("/", include_in_schema=False)
-def serve_frontend() -> FileResponse:
-    if not FRONTEND_ENTRYPOINT.exists():
-        raise HTTPException(status_code=404, detail="Frontend assets not found.")
-    return FileResponse(FRONTEND_ENTRYPOINT)
-
-
-@app.get("/api/health")
-def health_check() -> dict[str, Any]:
-    return {
-        "status": "healthy",
-        "service": "Brand Guardian AI",
-        "version": "2.0.0",
-        "environment": os.getenv("APP_ENV", "development"),
-    }
+# (Routes moved to top)
 
 
 @app.get("/api/config", response_model=AppConfigResponse)

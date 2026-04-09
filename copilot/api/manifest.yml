@@ -11,8 +11,15 @@ http:
   # Requests to this path will be forwarded to your service.
   # To match all requests you can use the "/" path.
   path: '/'
-  # You can specify a custom health check path. The default is "/".
-  healthcheck: '/api/health'
+  # Explicit health check configuration for the ALB.
+  healthcheck:
+    path: '/api/health'
+    success_codes: '200'
+    healthy_threshold: 3
+    unhealthy_threshold: 2
+    interval: 20s
+    timeout: 10s
+    grace_period: 120s
 
 # Configuration for your containers and service.
 image:

@@ -56,8 +56,6 @@ def index_docs():
         return
     
     # 5. Initialize Embedding Model (The "Translator")
-    # This turns text into numbers (vectors).
-    # MUST match the model you deployed in Azure AI Foundry ("text-embedding-3-small")
     try:
         logger.info("Initializing Azure OpenAI Embeddings...")
         embeddings = AzureOpenAIEmbeddings(
@@ -107,7 +105,6 @@ def index_docs():
             
             # 9. Chunking Strategy
             # We split text into 1000-character chunks with 200-character overlap
-            # to ensure context isn't lost between cuts.
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
                 chunk_overlap=200

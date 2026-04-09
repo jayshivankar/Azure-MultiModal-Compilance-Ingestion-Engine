@@ -1,139 +1,131 @@
-# Azure MultiModal Compliance Ingestion Engine (Brand Guardian AI)
+# Brand Guardian AI — Multimodal Compliance Ingestion Engine
 
-**Live Demo URL:** [http://brand--Publi-yJqYe8QyIkCq-528690479.ap-south-1.elb.amazonaws.com](http://brand--Publi-yJqYe8QyIkCq-528690479.ap-south-1.elb.amazonaws.com)
+**Live Demo:** [http://3.94.86.110:8000](http://3.94.86.110:8000)
 
 A production-grade, multi-agent **multimodal compliance auditing pipeline** designed to automate the process of checking video content against brand and regulatory guidelines. The system ingests public YouTube videos, extracts multimodal signals (Transcript + OCR) using **Azure Video Indexer**, retrieves relevant policy guidance from **Azure AI Search**, and generates structured compliance verdicts using specialized LangGraph **Azure OpenAI Agents**.
 
 ---
 
-## 🚀 Key Features
-
-*   **Multi-Agent Orchestration**: Powered by LangGraph, featuring a Supervisor-Worker pattern with ReAct agents (Audio, Visual) and a specialized Critic agent for self-correction.
-*   **Production Ingestion (v2.1)**: Utilizes an **Azure Blob Storage → SAS URL** workflow to securely and reliably upload massive video files to Azure Video Indexer without triggering HTTP timeouts.
-*   **Real-time Observability**: Streams live agent logs to the frontend via Server-Sent Events (SSE).
-*   **Distributed Rate Limiting**: Integrates `slowapi` backed by an internal **Redis** container to safely throttle requests across multiple load-balanced API containers.
-*   **YouTube Bot Bypass**: Implements Netscape `cookies.txt` injection to successfully route downloads around YouTube's "Sign in to confirm" data-center blockades.
-*   **AWS ECS Native**: Built from the ground up for instantaneous deployment to AWS Fargate via the AWS Copilot CLI.
-
----
-
 ## 🏗️ Architecture
 
-The engine follows a highly parallel, agentic workflow:
+The engine follows a highly parallel, agentic workflow using a **Supervisor-Worker-Critic** pattern:
 
 ```mermaid
 graph TD
-    A[YouTube URL] -->|yt-dlp + Auth Cookies| B[Blob Intermediary]
+    A[YouTube URL] -->|yt-dlp + Auth Cookies| B[Azure Blob Storage]
     B -->|SAS URL| C[Azure Video Indexer]
     C -->|Extract Transcript & OCR| D{LangGraph Supervisor}
     
     D --> E[Audio Agent]
     D --> F[Visual Agent]
     
-    E <-->|Tool: Web Search| Tavily
-    E <-->|Tool: Vector Search| Azure_AI_Search
+    E <-->|Tool: KB Search| AIS[Azure AI Search]
+    E <-->|Tool: Web Search| Tavily[Tavily Search]
     
+    F <-->|Tool: KB Search| AIS
     F <-->|Tool: Web Search| Tavily
-    F <-->|Tool: Vector Search| Azure_AI_Search
     
     E --> G{Critic Agent}
     F --> G
     
     G -->|Needs Revision| D
-    G -->|Approved| H[Structured Compliance Verdict]
-    H --> I[FastAPI /api/audit]
+    G -->|Approved| H[Final Verdict & Structured Report]
+    H --> I[FastAPI SSE Stream]
 ```
+
+---
+
+## 🚀 Key Features
+
+*   **Multi-Agent Orchestration**: Powered by **LangGraph**, featuring a Supervisor-Worker pattern with ReAct agents (Audio, Visual) and a specialized Critic agent for self-correction.
+*   **Production Ingestion (v2.1)**: Utilizes an **Azure Blob Storage → SAS URL** workflow to securely and reliably upload massive video files to Azure Video Indexer without triggering HTTP timeouts.
+*   **Self-Reflective Critic**: The Critic agent validates agent findings against original content and can trigger a "Revision Loop" if evidence or citations are missing.
+*   **Real-time Observability**: Streams live agent "thought logs" to the frontend via **Server-Sent Events (SSE)**.
+*   **Distributed Rate Limiting**: Integrates `slowapi` backed by **Redis** to safely throttle requests across multiple load-balanced API containers.
+*   **Bot Detection Bypass**: Implements Netscape `cookies.txt` injection to successfully route downloads around YouTube's datacenter blocks.
 
 ---
 
 ## 🛠️ Technology Stack
 
-*   **Backend Framework**: FastAPI, Uvicorn, Python 3.12-slim
-*   **Agentic Orchestration**: LangGraph, LangChain
-*   **AI & Cloud Services**: Azure OpenAI (GPT-4o), Azure Video Indexer, Azure AI Search, Azure Blob Storage
-*   **Search Tools**: Tavily Web Search
-*   **Deployment & Infrastructure**: Docker (multi-stage), AWS ECS (Fargate), AWS Application Load Balancer, AWS Copilot CLI, Redis
+*   **Backend**: FastAPI, Python 3.12, Uvicorn
+*   **Orchestration**: LangGraph, LangChain
+*   **AI Services**: Azure OpenAI (GPT-4o), Azure Video Indexer
+*   **Vector Database**: Azure AI Search (Vector Store)
+*   **Cloud Infrastructure**: AWS ECS (Fargate), Azure Blob Storage
+*   **Tools**: Tavily Web Search, yt-dlp, FFmpeg
+*   **Caching/Throttling**: Redis 7 (Alpine)
 
 ---
 
-## 📦 Local Setup & Docker Compose
+## 📖 Component Breakdown
 
-To test the multi-container architecture locally before deploying to the cloud:
+### 1. Ingestion Worker (Indexer)
+Downloads YouTube videos via `yt-dlp`, stages them in Azure Blob Storage, and submits them to Azure Video Indexer. It abstracts away the complexity of handling large file uploads and polling for multimodal insights.
 
-1.  **Clone the Repository**:
+### 2. Specialist Agents
+- **Audio Agent**: Processes the video transcript. It uses ReAct loops to search the Azure Knowledge Base for regulatory rules and issues structured findings (FTC disclosures, brand tone, etc.).
+- **Visual Agent**: Processes on-screen text (OCR). It identifies unauthorised logos, misleading visual claims, and missing legal caveats.
+
+### 3. Critic Agent
+Acts as the final quality gate. It deduplicates issues, verifies citations, and ensures the "Final Report" is concise and accurate. It can send agents back to work if the analysis is insufficient.
+
+---
+
+## 📦 Local Setup
+
+1.  **Clone & Install**:
     ```bash
     git clone <repo-url>
     cd Azure-MultiModal-Compilance-Ingestion-Engine
+    uv sync  # or pip install -e .
     ```
 
 2.  **Environment Setup**:
-    Create a `.env` file referencing the needed Azure Endpoints, Search Keys, and Tavily Keys (see `.env.example`).
-    Make sure to export your browser's YouTube session into `ComplianceQAPipeline/cookies.txt`.
+    Configure your `.env` with Azure, Tavily, and AWS credentials (see `.env.example`).
 
-3.  **Spin up with Docker Compose**:
+3.  **Run with Docker Compose**:
     ```bash
     docker compose up --build
     ```
-    This automatically boots the Redis Cache backend and the FastAPI server. Access the dashboard at `http://localhost:8000`.
+    Access the interactive dashboard at `http://localhost:8000`.
 
 ---
 
-## ☁️ AWS ECS Deployment (The Easy Way)
+## ☁️ Deployment
 
-This application is configured for one-click deployment to **AWS ECS (Fargate)** using the [AWS Copilot CLI](https://aws.github.io/copilot-cli/).
+The project is optimized for **AWS ECS (Fargate)**. A robust deployment script is provided:
 
-### 1. Initialize the Infrastructure
 ```bash
-copilot app init brand-guardian
-copilot env init --name dev --default-config
-copilot env deploy --name dev
+# Deploys Cluster, Task Definition, and Service to AWS
+./deploy_aws.sh --region us-east-1
 ```
 
-### 2. Configure Internal Redis
-Launch the rate-limiting Redis backend directly into your secure VPC subnets:
-```bash
-copilot svc init --name redis --svc-type "Backend Service" --dockerfile ./redis_svc/Dockerfile
-copilot svc deploy --name redis --env dev
-```
-
-### 3. Inject Secrets Securely
-Never hardcode credentials or commit them to source control. Inject your `.env` variables and your YouTube Cookies safely to AWS Systems Manager (SSM) Parameter Store:
-```bash
-# Example
-copilot secret init --name TAVILY_API_KEY --values dev="<your-key>"
-
-# Inject your cookies file as Base64 to avoid mounting local volumes
-export B64_COOKIES=$(base64 -w 0 ComplianceQAPipeline/cookies.txt)
-copilot secret init --name YOUTUBE_COOKIES_B64 --values dev="$B64_COOKIES"
-```
-*(The provided Docker `entrypoint.sh` automatically decodes the `YOUTUBE_COOKIES_B64` secret before the server boots).*
-
-### 4. Deploy the API
-```bash
-copilot svc init --name api --svc-type "Load Balanced Web Service" --dockerfile ./Dockerfile
-copilot svc deploy --name api --env dev
-```
-AWS Copilot will output your final public Application Load Balancer URL.
+**Infrastructure includes:**
+- **ECR**: Private Docker registry.
+- **Fargate**: Serverless execution of the API and Redis workers.
+- **CloudWatch**: Centralised logging for agent activity.
+- **VPC**: Isolated networking with public-facing ALB or direct IP access.
 
 ---
 
-## 📖 Usage
+## 🔐 Security & Governance
 
-### API Endpoints
-*   **Health Check**: `GET /api/health`
-*   **Run Audit**: `POST /api/audit`
-    ```json
-    { "video_url": "https://www.youtube.com/watch?v=example" }
-    ```
-*   **Stream Live Logs (SSE)**: `GET /api/audit/{session_id}/stream`
-
-### Frontend Dashboard
-You can monitor pipeline states in real-time by visiting the `/` root domain of your hosted application. The interactive terminal dynamically streams Supervisor and Critic Agent reasonings as they occur.
+*   **SAS Tokens**: Azure storage access is limited to short-lived Shared Access Signatures.
+*   **Non-Root Execution**: Container processes run as restricted users (UID 1000).
+*   **Secret Management**: Sensitive keys are injected via environment variables (supporting AWS Secrets Manager).
 
 ---
 
-## 🔐 Security & Operations
+## 🎯 Usage
 
-*   **Data Privacy**: Videos pushed via SAS URLs to Video Indexer follow Azure's enterprise privacy boundaries.
-*   **Stability**: Large uploads are chunked directly to Blob Storage first, circumventing Video Indexer's direct-HTTP reset limits.
-*   **Rate Limits**: Endpoint traffic is strictly regulated via SlowAPI, backed synchronously across replicas using the Copilot Redis Backend.
+**Endpoint:** `POST /api/audit`
+**Payload:**
+```json
+{
+  "video_url": "https://www.youtube.com/watch?v=EXAMPLE_ID"
+}
+```
+
+**Response (SSE Stream):**
+Live logs are streamed via `GET /api/audit/{session_id}/stream`, followed by the final compliance report.

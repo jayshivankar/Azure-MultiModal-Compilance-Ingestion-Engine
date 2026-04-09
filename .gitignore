@@ -168,4 +168,4 @@ ComplianceQAPipeline/cookies.txt
 
 # Temporary downloaded/processed media files
 temp_*.mp4
-*.mp4
+*.mp4task-definition.json
